@@ -2,8 +2,6 @@
 import requests
 from bs4 import BeautifulSoup
 
-BASE_URL = "https://en.wikipedia.org/wiki/Potato"
-
 HEADERS = {
     "User-Agent": "wiki-speedrun/1.0"
 }
@@ -79,12 +77,12 @@ class WikipediaClient:
             seen_links.add(href)
 
         return list(seen_links)
-        
-        
 
+## Test Purpose
 if __name__ == "__main__":
-    client = WikipediaClient()
+    BASE_URL = "https://en.wikipedia.org/wiki/Potato"
     
+    client = WikipediaClient()
     links = client.get_all_valid_links(BASE_URL)
-
+    
     print(f"Found {len(links)} valid Links")
