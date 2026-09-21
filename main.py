@@ -4,7 +4,7 @@ from wiki_speedrun.wikipedia import WikipediaClient
 
 
 START_URL = "https://en.wikipedia.org/wiki/Potato"
-TARGET_URL = "https://en.wikipedia.org/wiki/Sweet_potato"
+TARGET_URL = "https://en.wikipedia.org/wiki/Barack_Obama"
 
 
 if __name__ == "__main__":

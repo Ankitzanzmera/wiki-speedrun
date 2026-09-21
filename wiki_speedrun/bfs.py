@@ -21,7 +21,7 @@ class BFS:
             if current_url == target_url:
                 return self.reconstruct_path(parent=parent, target_url=target_url)
             
-            links = self.wiki_client.get_all_valid_links(base_url=start_url)
+            links = self.wiki_client.get_all_valid_links(base_url=current_url)
             
             for link in links:
                 
