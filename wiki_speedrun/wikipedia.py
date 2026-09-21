@@ -1,6 +1,7 @@
 
 import requests
 from bs4 import BeautifulSoup
+from urllib.parse import urldefrag, urljoin, urlparse
 
 HEADERS = {
     "User-Agent": "wiki-speedrun/1.0"
@@ -26,19 +27,16 @@ class WikipediaClient:
 
     def __init__(self, timeout: int = 10):
         self.timeout = timeout
+        
+        self.session = requests.Session()
+        self.session.headers.update(HEADERS)
+        
+        self.cache = dict()
     
     def get_page(self, base_url: str) -> str:
-        """
-        Download the HTML of a Wikipedia article.
-
-        Example:
-            "Python (programming language)"
-        """
-
-        response = requests.get(
+        response = self.session.get(
             base_url,
-            headers=HEADERS,
-            timeout=self.timeout, ## Will wait for till specified second.
+            timeout=self.timeout, ## Will wait for till specified seconds.
         )
 
         response.raise_for_status()
@@ -51,8 +49,18 @@ class WikipediaClient:
                 return False
         return True
 
+    def normalize_url(self, url: str) -> str:
+        url, _ = urldefrag(url)
+        parsed = urlparse(url)
+        return f"{parsed.scheme}://{parsed.netloc}{parsed.path}"
+
     def get_all_valid_links(self, base_url):
         
+        base_url = self.normalize_url(base_url)
+
+        if base_url in self.cache:
+            return self.cache[base_url]
+
         html = self.get_page(base_url=base_url)
         
         soup = BeautifulSoup(html, "html.parser")
@@ -65,17 +73,17 @@ class WikipediaClient:
             if not href:
                 continue
             
+            href = self.normalize_url(href)
+            
             if not href.startswith("https://en.wikipedia.org/wiki"):
                 continue
         
             if not self.clean_link(link=href):
                 continue
             
-            if "#" in href:
-                href = href.split("#")[0]
-            
             seen_links.add(href)
 
+        self.cache[base_url] = seen_links
         return list(seen_links)
 
 ## Test Purpose
