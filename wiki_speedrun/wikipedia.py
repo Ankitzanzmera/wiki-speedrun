@@ -34,14 +34,18 @@ class WikipediaClient:
         self.cache = dict()
     
     def get_page(self, base_url: str) -> str:
-        response = self.session.get(
-            base_url,
-            timeout=self.timeout, ## Will wait for till specified seconds.
-        )
+        
+        try:
+            response = self.session.get(
+                base_url,
+                timeout=self.timeout, ## Will wait for till specified seconds.
+            )
 
-        response.raise_for_status()
+            response.raise_for_status()
 
-        return response.text
+            return response.text
+        except :
+            return False
 
     def clean_link(self, link):
         for keyword in REJECT_NAMESPACES:
@@ -62,6 +66,9 @@ class WikipediaClient:
             return self.cache[base_url]
 
         html = self.get_page(base_url=base_url)
+        
+        if html == False:
+            return []
         
         soup = BeautifulSoup(html, "html.parser")
         
@@ -84,7 +91,7 @@ class WikipediaClient:
             seen_links.add(href)
 
         self.cache[base_url] = seen_links
-        return list(seen_links)
+        return sorted(list(seen_links))
 
 ## Test Purpose
 if __name__ == "__main__":
