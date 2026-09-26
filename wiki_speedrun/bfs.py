@@ -23,6 +23,9 @@ class BFS:
             
             links = self.wiki_client.get_all_valid_links(base_url=current_url)
             
+            if links == []:
+                continue
+            
             for link in links:
                 
                 if link in visited:
