@@ -2,7 +2,8 @@ import time
 from wiki_speedrun.bfs import BFS
 from wiki_speedrun.wikipedia import WikipediaClient
 from wiki_speedrun.concurrent_bfs import ConcurentBFS
-
+from wiki_speedrun.semantic_bfs import SemanticBFS
+from wiki_speedrun.semantic import SemanticRanker
 
 START_URL = "https://en.wikipedia.org/wiki/Potato"
 TARGET_URL = "https://en.wikipedia.org/wiki/Barack_Obama"
@@ -11,7 +12,8 @@ TARGET_URL = "https://en.wikipedia.org/wiki/Barack_Obama"
 if __name__ == "__main__":
     
     # bfs = BFS(wiki_client=WikipediaClient())
-    bfs = ConcurentBFS(wiki_client=WikipediaClient())
+    # bfs = ConcurentBFS(wiki_client=WikipediaClient())
+    bfs = SemanticBFS(wiki_client=WikipediaClient(), ranker=SemanticRanker())
     
     start = time.time()
     path = bfs.search(start_url=START_URL, target_url=TARGET_URL)
