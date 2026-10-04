@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Wikipedia Speedrun — Find the shortest path</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="/static/style.css" />
+<script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+</head>
+<body>
+<div class="bg" aria-hidden="true"><span class="blob b1"></span><span class="blob b2"></span><span class="blob b3"></span></div>
+<header class="topbar">
+  <div class="glow glow-a"></div>
+  <div class="glow glow-b"></div>
+  <div class="container topbar-inner">
+    <div class="brand">
+      <span class="brand-globe">◉</span>
+      <div>
+        <h1>Wikipedia Speedrun</h1>
+        <p>Bot solver — shortest click-path between articles</p>
+      </div>
+    </div>
+    <div class="topbar-links">
+      <span class="status-pill"><span id="healthDot" class="health" title="backend status">●</span> server</span>
+      <a class="wiki-link" href="https://en.wikipedia.org" target="_blank" rel="noopener">Wikipedia ↗</a>
+    </div>
+  </div>
+  <div class="container hero-chips">
+    <span class="chip">🧭 3 solvers</span>
+    <span class="chip">⚡ live progress</span>
+    <span class="chip">🕸 interactive graph</span>
+  </div>
+</header>
+
+<main class="container">
+  <!-- Controls -->
+  <section class="card control-card">
+    <div class="endpoints">
+      <div class="field">
+        <label for="startInput">Source <span class="label-hint">title or Wikipedia URL</span> <a id="startOpen" href="https://en.wikipedia.org/wiki/Potato" target="_blank" rel="noopener" class="open-link" title="Open source article">↗</a></label>
+        <input id="startInput" type="text" value="https://en.wikipedia.org/wiki/Potato" autocomplete="off" placeholder="Potato or https://en.wikipedia.org/wiki/Potato" />
+        <div id="startSuggest" class="suggest"></div>
+      </div>
+      <button id="swapBtn" class="icon-btn" title="Swap source / target">⇄</button>
+      <div class="field">
+        <label for="targetInput">Target <span class="label-hint">title or Wikipedia URL</span> <a id="targetOpen" href="https://en.wikipedia.org/wiki/Barack_Obama" target="_blank" rel="noopener" class="open-link" title="Open target article">↗</a></label>
+        <input id="targetInput" type="text" value="https://en.wikipedia.org/wiki/Barack_Obama" autocomplete="off" placeholder="Barack Obama or https://en.wikipedia.org/wiki/Barack_Obama" />
+        <div id="targetSuggest" class="suggest"></div>
+      </div>
+    </div>
+    <p class="hint">Paste full Wikipedia URLs or just type article titles — e.g. <code>https://en.wikipedia.org/wiki/Potato</code> or <code>Potato</code>. Use ⇄ to swap them.</p>
+
+    <div class="algo-row" role="radiogroup" aria-label="Algorithm">
+      <button class="algo active" data-algo="bfs">
+        <span class="algo-icon">🧭</span><strong>BFS</strong><span>Classic, shortest path</span>
+      </button>
+      <button class="algo" data-algo="concurrent">
+        <span class="algo-icon">⚡</span><strong>Concurrent BFS</strong><span>Parallel fetch, faster</span>
+      </button>
+      <button class="algo" data-algo="semantic">
+        <span class="algo-icon">🧠</span><strong>Semantic BFS</strong><span>AI-guided toward target</span>
+      </button>
+    </div>
+
+    <details class="advanced">
+      <summary>Advanced settings</summary>
+      <div class="advanced-grid">
+        <div class="field">
+          <label for="maxPages">Max pages to visit <output id="maxPagesOut">800</output></label>
+          <input id="maxPages" type="range" min="50" max="10000" step="50" value="800" />
+        </div>
+        <div class="field">
+          <label for="maxDepth">Max depth (clicks) <output id="maxDepthOut">5</output></label>
+          <input id="maxDepth" type="range" min="1" max="10" step="1" value="5" />
+        </div>
+      </div>
+      <p class="hint">BFS explodes combinatorially. Depth 5–6 with 500–2000 pages is a sane default. Raise limits for distant topics.</p>
+    </details>
+
+    <div class="actions">
+      <button id="searchBtn" class="primary">▶ Find path</button>
+      <button id="cancelBtn" class="danger" disabled>■ Cancel</button>
+      <button id="randomBtn" class="ghost" title="Fill in a fun random pair">🎲 Random</button>
+      <button id="copyBtn" class="ghost" disabled>⧉ Copy path</button>
+    </div>
+    <p id="formError" class="error" hidden></p>
+  </section>
+
+  <!-- Live progress -->
+  <section id="progressCard" class="card" hidden>
+    <div class="progress-head">
+      <h2 id="progressTitle">Searching…</h2>
+      <span id="elapsedBadge" class="badge">0.0s</span>
+    </div>
+    <div class="stat-grid">
+      <div class="stat"><span class="stat-num" id="statVisited">0</span><span class="stat-label">pages visited</span></div>
+      <div class="stat"><span class="stat-num" id="statQueue">0</span><span class="stat-label">in queue</span></div>
+      <div class="stat"><span class="stat-num" id="statCurrent">—</span><span class="stat-label">currently visiting</span></div>
+    </div>
+    <div class="bar"><div id="progressBar" class="bar-fill"></div></div>
+    <div id="logFeed" class="log"></div>
+  </section>
+
+  <!-- Result -->
+  <section id="resultCard" class="card" hidden>
+    <h2>Result</h2>
+    <div id="resultStats" class="stat-grid"></div>
+    <ol id="pathList" class="path"></ol>
+  </section>
+
+  <!-- Graph (own full-width card, much bigger) -->
+  <section id="graphCard" class="card graph-card" hidden>
+    <div class="graph-head">
+      <h3>Explored graph</h3>
+      <div class="graph-tools">
+        <label class="toggle"><input type="checkbox" id="pathOnlyToggle" /> Path only</label>
+        <button id="fitBtn" class="mini-btn" title="Zoom graph to fit">⤢ Fit</button>
+        <button id="expandBtn" class="mini-btn" title="Toggle fullscreen graph">⛶ Expand</button>
+      </div>
+    </div>
+    <div id="graph" class="graph"></div>
+    <div class="graph-legend">
+      <span><i class="dot dot-origin"></i> Source</span>
+      <span><i class="dot dot-target"></i> Target</span>
+      <span><i class="dot dot-path"></i> Shortest path</span>
+      <span><i class="dot dot-node"></i> Explored · bubble size = links found</span>
+    </div>
+    <div id="nodeDetail" class="node-detail" hidden>
+      <div class="nd-info">
+        <strong id="ndTitle"></strong>
+        <span id="ndRole" class="nd-role"></span>
+        <p id="ndMeta" class="hint"></p>
+      </div>
+      <div class="nd-actions">
+        <a id="ndOpen" href="#" target="_blank" rel="noopener" class="mini-btn">Open ↗</a>
+        <button id="ndClose" class="mini-btn">✕</button>
+      </div>
+    </div>
+    <p class="hint">Drag to pan · scroll to zoom · click a bubble for details · double-click to open the article. Gold nodes = shortest path.</p>
+  </section>
+</main>
+
+<footer class="container footer">
+</footer>
+
+<script src="/static/app.js"></script>
+</body>
+</html>
